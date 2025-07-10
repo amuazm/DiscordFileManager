@@ -5,9 +5,17 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>me.amuazm</groupId>
-  <artifactId>DiscordFileManager</artifactId>
+  <artifactId>discord-file-manager</artifactId>
   <version>1.0.0</version>
   <packaging>jar</packaging>
+
+  <distributionManagement>
+    <repository>
+      <id>github</id>
+      <name>GitHub amuazm Apache Maven Packages</name>
+      <url>https://maven.pkg.github.com/amuazm/DiscordFileManager</url>
+    </repository>
+  </distributionManagement>
 
   <name>DiscordFileManager</name>
 
