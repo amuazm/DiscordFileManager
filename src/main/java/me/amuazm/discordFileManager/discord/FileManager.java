@@ -1,13 +1,13 @@
 package me.amuazm.discordFileManager.discord;
 
 import lombok.Getter;
+import me.amuazm.discordFileManager.DiscordFileManager;
+import me.amuazm.discordFileManager.utils.ConfigManager;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.utils.FileUpload;
-import me.amuazm.discordFileManager.DiscordFileManager;
-import me.amuazm.discordFileManager.utils.ConfigManager;
 import org.bukkit.Bukkit;
 
 import java.io.File;
@@ -105,7 +105,7 @@ public class FileManager extends ListenerAdapter {
                 File[] files = rootDir.listFiles();
 
                 if (files == null || files.length == 0) {
-                    channel.sendMessage("<@" + event.getAuthor().getId() + "> 📖 No files found inside " + dirFromPluginFolder).queue();
+                    channel.sendMessage("<@" + event.getAuthor().getId() + "> 📖 No files found inside `" + dirFromPluginFolder + "`").queue();
                     return;
                 }
 

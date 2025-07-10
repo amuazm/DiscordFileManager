@@ -10,10 +10,15 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 @Getter
 public final class DiscordFileManager extends JavaPlugin {
     private ConfigManager configManager;
     private JDA jda = null;
+    private List<FileManager> fileManagers = new ArrayList<>();
 
     @Override
     public void onEnable() {
@@ -26,42 +31,119 @@ public final class DiscordFileManager extends JavaPlugin {
 
         if (!configManager.validateConfig()) {
             getLogger().severe("Invalid config. Disabling plugin.");
-            return;
-        }
-
-        HelpCommandListener helpCommandListener = new HelpCommandListener(this);
-        FileManager stateMachineFileManager = new FileManager(this, "Morpheus/state_machines", "State Machine", "sm");
-        FileManager questFileManager = new FileManager(this, "Quests/quests", "Quest", "q");
-        FileManager questItemFileManager = new FileManager(this, "Quests/items", "Quest Item", "qi");
-
-        if (!stateMachineFileManager.isDirValid() || !questFileManager.isDirValid() || !questItemFileManager.isDirValid()) {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
 
-        try {
-            // Initialize JDA with required intents
-            jda = JDABuilder.createDefault(configManager.getBotToken())
-                    .enableIntents(GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_MESSAGES)
-                    .addEventListeners(helpCommandListener)
-                    .addEventListeners(stateMachineFileManager)
-                    .addEventListeners(questFileManager)
-                    .addEventListeners(questItemFileManager)
-                    .build();
+        initializeFileManagers();
+        initializeDiscordBot();
+    }
 
+    private void initializeFileManagers() {
+        fileManagers.clear();
+
+        Map<String, ConfigManager.FileManagerConfig> configuredManagers = configManager.getFileManagers();
+
+        for (Map.Entry<String, ConfigManager.FileManagerConfig> entry : configuredManagers.entrySet()) {
+            String commandPrefix = entry.getKey();
+            ConfigManager.FileManagerConfig config = entry.getValue();
+
+            FileManager fileManager = new FileManager(
+                    this,
+                    config.getDirFromPluginFolder(),
+                    config.getItemCategory(),
+                    commandPrefix
+            );
+
+            if (!fileManager.isDirValid()) {
+                getLogger().severe("Failed to initialize file manager for prefix '" + commandPrefix + "' with directory '" + config.getDirFromPluginFolder() + "'");
+                getServer().getPluginManager().disablePlugin(this);
+                return;
+            }
+
+            fileManagers.add(fileManager);
+            getLogger().info("Initialized file manager: " + commandPrefix + " -> " + config.getDirFromPluginFolder() + " (" + config.getItemCategory() + ")");
+        }
+    }
+
+    private void initializeDiscordBot() {
+        try {
+            HelpCommandListener helpCommandListener = new HelpCommandListener(this);
+
+            JDABuilder builder = JDABuilder.createDefault(configManager.getBotToken())
+                    .enableIntents(GatewayIntent.MESSAGE_CONTENT, GatewayIntent.GUILD_MESSAGES)
+                    .addEventListeners(helpCommandListener);
+
+            // Add all file managers as event listeners
+            for (FileManager fileManager : fileManagers) {
+                builder.addEventListeners(fileManager);
+            }
+
+            jda = builder.build();
             jda.awaitReady();
-            getLogger().info("Discord bot connected successfully!");
+
+            getLogger().info("Discord bot connected successfully with " + fileManagers.size() + " file manager(s)!");
         } catch (Exception e) {
             getLogger().severe("Failed to initialize Discord bot: " + e.getMessage());
             e.printStackTrace();
+            getServer().getPluginManager().disablePlugin(this);
         }
+    }
+
+    public void reloadFileManagers() {
+        getLogger().info("Reloading file managers...");
+
+        // Remove old file managers from JDA
+        if (jda != null) {
+            for (FileManager fileManager : fileManagers) {
+                jda.removeEventListener(fileManager);
+            }
+        }
+
+        // Reinitialize file managers
+        initializeFileManagers();
+
+        // Add new file managers to JDA
+        if (jda != null) {
+            for (FileManager fileManager : fileManagers) {
+                jda.addEventListener(fileManager);
+            }
+        }
+
+        getLogger().info("File managers reloaded successfully!");
     }
 
     @Override
     public void onDisable() {
         if (jda != null) {
-            jda.shutdown();
-            getLogger().info("Discord bot disconnected.");
+            try {
+                getLogger().info("Shutting down Discord bot...");
+
+                // Remove all event listeners first to prevent further events
+                for (FileManager fileManager : fileManagers) {
+                    jda.removeEventListener(fileManager);
+                }
+
+                // Shutdown JDA and wait for it to complete
+                jda.shutdown();
+
+                // Wait for JDA to fully shutdown (max 10 seconds)
+                if (!jda.awaitShutdown(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                    getLogger().warning("JDA did not shutdown within 10 seconds, forcing shutdown...");
+                    jda.shutdownNow();
+                }
+
+                getLogger().info("Discord bot disconnected successfully.");
+            } catch (InterruptedException e) {
+                getLogger().warning("Interrupted while waiting for JDA shutdown: " + e.getMessage());
+                jda.shutdownNow();
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                getLogger().warning("Error during JDA shutdown: " + e.getMessage());
+                jda.shutdownNow();
+            } finally {
+                jda = null;
+            }
         }
     }
 }

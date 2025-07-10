@@ -41,11 +41,14 @@ public class DfmReloadCommand implements CommandExecutor, TabCompleter {
             boolean configValid = configManager.validateConfig();
 
             if (configValid) {
+                // Reload file managers with new config
+                plugin.reloadFileManagers();
+
                 if (sender instanceof Player) {
-                    sender.sendMessage(ChatColor.GREEN + "DiscordFileManager config reloaded successfully!");
+                    sender.sendMessage(ChatColor.GREEN + "DiscordFileManager config and file managers reloaded successfully!");
                 }
 
-                plugin.getLogger().info("Config reloaded by " + sender.getName());
+                plugin.getLogger().info("Config and file managers reloaded by " + sender.getName());
             } else {
                 if (sender instanceof Player) {
                     sender.sendMessage(ChatColor.RED + "Config reloaded but contains invalid values! Check console for details.");

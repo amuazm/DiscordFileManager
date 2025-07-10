@@ -47,7 +47,6 @@
               </relocations>
               <minimizeJar>true</minimizeJar>
             </configuration>
-
           </execution>
         </executions>
       </plugin>

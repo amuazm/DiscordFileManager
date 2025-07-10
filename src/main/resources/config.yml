@@ -2,3 +2,9 @@ bot-token: ""
 guild-id: ""
 channel-id: ""
 allowed-user-ids: [ "" ]
+
+file-managers:
+# Example Entry
+#  s:
+#    dir-from-plugin-folder: "FastAsyncWorldEdit/schematics"
+#    item-category: "Schematic"
