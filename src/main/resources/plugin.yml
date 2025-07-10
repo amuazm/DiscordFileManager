@@ -1,0 +1,15 @@
+name: DiscordFileManager
+version: '1.0.0'
+main: me.amuazm.discordFileManager.DiscordFileManager
+api-version: '1.21'
+description: Discord File Manager for Minecraft Paper
+commands:
+  dfm:
+    description: Discord File Manager Commands
+    usage: /dfm reload
+    permission: discordfilemanager.reload
+    permission-message: You don't have permission to use this command.
+permissions:
+  discordfilemanager.reload:
+    description: Allows reloading the DiscordFileManager config
+    default: op
