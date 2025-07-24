@@ -1,8 +1,10 @@
 name: DiscordFileManager
-version: '1.1.0'
+version: '1.1.1'
 main: me.amuazm.discordFileManager.DiscordFileManager
-api-version: '1.21'
-description: Discord File Manager for Minecraft Paper
+api-version: '1.20'
+description: Discord File Manager for Minecraft Paper (Supports 1.20.2+)
+author: amuazm
+website: https://github.com/amuazm/DiscordFileManager
 commands:
   dfm:
     description: Discord File Manager Commands
