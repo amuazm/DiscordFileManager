@@ -4,7 +4,16 @@ channel-id: ""
 allowed-user-ids: [ "" ]
 
 file-managers:
-# Example Entry
-#  s:
-#    dir-from-plugin-folder: "FastAsyncWorldEdit/schematics"
-#    item-category: "Schematic"
+  # Example Entry
+  s:
+    dir-from-plugin-folder: "FastAsyncWorldEdit/schematics"
+    item-category: "Schematic"
+    allow-nested-dirs: true
+    emoji: "🏗️"
+
+  # Example Entry
+  q:
+    dir-from-plugin-folder: "Quests/quests"
+    item-category: "Quest"
+    allow-nested-dirs: true
+    emoji: "🐲"

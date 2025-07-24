@@ -52,9 +52,11 @@ public class ConfigManager {
 
             String dirFromPluginFolder = managerSection.getString("dir-from-plugin-folder");
             String itemCategory = managerSection.getString("item-category");
+            boolean allowNestedDirs = managerSection.getBoolean("allow-nested-dirs", false);
+            String emoji = managerSection.getString("emoji", "📁");
 
             if (dirFromPluginFolder != null && itemCategory != null) {
-                fileManagers.put(commandPrefix, new FileManagerConfig(dirFromPluginFolder, itemCategory));
+                fileManagers.put(commandPrefix, new FileManagerConfig(dirFromPluginFolder, itemCategory, allowNestedDirs, emoji));
             } else {
                 plugin.getLogger().warning("Invalid file manager configuration for prefix '" + commandPrefix + "': missing dir-from-plugin-folder or item-category");
             }
@@ -98,10 +100,14 @@ public class ConfigManager {
     public static class FileManagerConfig {
         private final String dirFromPluginFolder;
         private final String itemCategory;
+        private final boolean allowNestedDirs;
+        private final String emoji;
 
-        public FileManagerConfig(String dirFromPluginFolder, String itemCategory) {
+        public FileManagerConfig(String dirFromPluginFolder, String itemCategory, boolean allowNestedDirs, String emoji) {
             this.dirFromPluginFolder = dirFromPluginFolder;
             this.itemCategory = itemCategory;
+            this.allowNestedDirs = allowNestedDirs;
+            this.emoji = emoji;
         }
 
         public String getDirFromPluginFolder() {
@@ -110,6 +116,14 @@ public class ConfigManager {
 
         public String getItemCategory() {
             return itemCategory;
+        }
+
+        public boolean isAllowNestedDirs() {
+            return allowNestedDirs;
+        }
+
+        public String getEmoji() {
+            return emoji;
         }
     }
 }

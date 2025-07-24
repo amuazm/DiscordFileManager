@@ -52,7 +52,8 @@ public final class DiscordFileManager extends JavaPlugin {
                     this,
                     config.getDirFromPluginFolder(),
                     config.getItemCategory(),
-                    commandPrefix
+                    commandPrefix,
+                    config.isAllowNestedDirs()
             );
 
             if (!fileManager.isDirValid()) {
@@ -62,7 +63,8 @@ public final class DiscordFileManager extends JavaPlugin {
             }
 
             fileManagers.add(fileManager);
-            getLogger().info("Initialized file manager: " + commandPrefix + " -> " + config.getDirFromPluginFolder() + " (" + config.getItemCategory() + ")");
+            String nestedDirStatus = config.isAllowNestedDirs() ? " (nested dirs enabled)" : " (nested dirs disabled)";
+            getLogger().info("Initialized file manager: " + commandPrefix + " -> " + config.getDirFromPluginFolder() + " (" + config.getItemCategory() + ")" + nestedDirStatus);
         }
     }
 
