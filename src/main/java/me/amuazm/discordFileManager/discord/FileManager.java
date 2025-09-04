@@ -3,21 +3,27 @@ package me.amuazm.discordFileManager.discord;
 import lombok.Getter;
 import me.amuazm.discordFileManager.DiscordFileManager;
 import me.amuazm.discordFileManager.utils.ConfigManager;
+import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.utils.FileUpload;
 import org.bukkit.Bukkit;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Logger;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static me.amuazm.discordFileManager.utils.Utils.splitIntoChunks;
 
@@ -39,6 +45,10 @@ public class FileManager extends ListenerAdapter {
     private final String deleteCommand;
     private final String mkdirCommand;
     private final String rmdirCommand;
+    private final String searchCommand;
+
+    // Store search results temporarily for button interactions
+    private final Map<String, List<File>> searchResultsCache = new HashMap<>();
 
     public FileManager(DiscordFileManager plugin, String dirFromPluginFolder, String itemCategory, String commandPrefix, boolean allowNestedDirs) {
         this.plugin = plugin;
@@ -56,6 +66,7 @@ public class FileManager extends ListenerAdapter {
         deleteCommand = "$" + commandPrefix + "-delete";
         mkdirCommand = "$" + commandPrefix + "-mkdir";
         rmdirCommand = "$" + commandPrefix + "-rmdir";
+        searchCommand = "$" + commandPrefix + "-search";
 
         // Create directory if it doesn't exist
         if (!rootDir.exists()) {
@@ -119,7 +130,216 @@ public class FileManager extends ListenerAdapter {
             handleMkdirCommand(args, event);
         } else if (args[0].equals(rmdirCommand) && allowNestedDirs) {
             handleRmdirCommand(args, event);
+        } else if (args[0].equals(searchCommand)) {
+            handleSearchCommand(args, event);
         }
+    }
+
+    @Override
+    public void onButtonInteraction(ButtonInteractionEvent event) {
+        if (event.isAcknowledged()) {
+            return;
+        }
+
+        String buttonId = event.getButton().getId();
+
+        if (buttonId == null || !buttonId.startsWith("download_search_")) {
+            return;
+        }
+
+        Member member = event.getMember();
+
+        if (member == null) {
+            return;
+        }
+
+        // Check if user is allowed
+        if (!configManager.getAllowedUserIds().contains(event.getUser().getId())) {
+            event.reply("<@" + member.getId() + "> ❌ You don't have permission to use this button.").queue();
+            return;
+        }
+
+        // Extract the search ID from the button ID
+        String searchId = buttonId.substring("download_search_".length());
+        List<File> files = searchResultsCache.get(searchId);
+
+        if (files == null || files.isEmpty()) {
+            event.reply("<@" + member.getId() + "> ❌ Search results have expired. Please run the search again.").queue();
+            return;
+        }
+
+        try {
+            // Create zip file in memory
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ZipOutputStream zos = new ZipOutputStream(baos);
+
+            for (File file : files) {
+                if (file.exists() && file.isFile()) {
+                    addFileToZip(file, rootDir, zos);
+                }
+            }
+
+            zos.close();
+            byte[] zipData = baos.toByteArray();
+
+            // Check file size (Discord 8MB limit)
+            long maxSizeBytes = 8 * 1024 * 1024;
+
+            if (zipData.length > maxSizeBytes) {
+                double fileSizeInMB = zipData.length / (1024.0 * 1024.0);
+                event.reply(String.format("<@" + member.getId() + "> ❌ The resulting zip file is too large (%.2f MB). Discord limit is 8MB.", fileSizeInMB)).queue();
+                return;
+            }
+
+            // Upload the zip file
+            String zipFileName = "search_results_" + searchId + ".zip";
+            event.reply("<@" + member.getId() + "> ✅ Here are your search results:")
+                    .addFiles(FileUpload.fromData(zipData, zipFileName))
+                    .queue();
+
+            logger.info("Created and uploaded zip file with " + files.size() + " files for search ID: " + searchId);
+
+            // Clean up the cache entry after successful download
+            searchResultsCache.remove(searchId);
+        } catch (Exception e) {
+            event.reply("<@" + member.getId() + "> ❌ Error creating zip file: " + e.getMessage()).queue();
+            logger.severe("Error creating zip file: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void handleSearchCommand(String[] args, MessageReceivedEvent event) {
+        MessageChannel channel = event.getChannel();
+
+        if (args.length < 2) {
+            channel.sendMessage("<@" + event.getAuthor().getId() + "> ❌ Usage: `" + searchCommand + " <prefix>` - searches for files starting with the given prefix").queue();
+            return;
+        }
+
+        // Join all arguments after the command to form the search query
+        String searchQuery = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).toLowerCase();
+
+        try {
+            // Search for files recursively if nested dirs allowed, otherwise just in root
+            List<File> matchingFiles = new ArrayList<>();
+            searchFiles(rootDir, searchQuery, matchingFiles);
+
+            if (matchingFiles.isEmpty()) {
+                channel.sendMessage("<@" + event.getAuthor().getId() + "> 📖 No files found starting with `" + searchQuery + "`").queue();
+                return;
+            }
+
+            // Sort files alphabetically
+            matchingFiles.sort((f1, f2) -> {
+                String path1 = getRelativePath(f1);
+                String path2 = getRelativePath(f2);
+                return path1.toLowerCase().compareTo(path2.toLowerCase());
+            });
+
+            // Build the results message
+            StringBuilder results = new StringBuilder("<@" + event.getAuthor().getId() + ">\n### 🔍 Search Results for prefix `" + searchQuery + "`:\n");
+            results.append("Found **").append(matchingFiles.size()).append(" file(s)**:\n\n");
+
+            for (File file : matchingFiles) {
+                String relativePath = getRelativePath(file);
+                results.append("📄 `").append(relativePath).append("`\n");
+            }
+
+            // Generate a unique ID for this search
+            String searchId = UUID.randomUUID().toString().substring(0, 8);
+
+            // Store the results in cache
+            searchResultsCache.put(searchId, new ArrayList<>(matchingFiles));
+
+            // Clean up old cache entries (keep only last 10 searches)
+            if (searchResultsCache.size() > 10) {
+                Iterator<String> iterator = searchResultsCache.keySet().iterator();
+                iterator.next();
+                iterator.remove();
+            }
+
+            // Create download button
+            Button downloadButton = Button.primary("download_search_" + searchId, "📥 Download as ZIP");
+
+            // Send message with results and button
+            String[] chunks = splitIntoChunks(results.toString(), 1900);
+
+            // Send all chunks except the last one
+            for (int i = 0; i < chunks.length - 1; i++) {
+                channel.sendMessage(chunks[i]).queue();
+            }
+
+            // Send the last chunk with the button
+            if (chunks.length > 0) {
+                channel.sendMessage(chunks[chunks.length - 1])
+                        .setActionRow(downloadButton)
+                        .queue();
+            }
+
+            logger.info("Search performed for prefix '" + searchQuery + "' by " + event.getAuthor().getName() + " - Found " + matchingFiles.size() + " files");
+
+        } catch (Exception e) {
+            channel.sendMessage("<@" + event.getAuthor().getId() + "> ❌ Error searching files: " + e.getMessage()).queue();
+            logger.severe("Error searching files: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    private void searchFiles(File directory, String prefix, List<File> results) {
+        if (!directory.exists() || !directory.isDirectory()) {
+            return;
+        }
+
+        File[] files = directory.listFiles();
+        if (files == null) {
+            return;
+        }
+
+        for (File file : files) {
+            if (file.isFile() && file.getName().toLowerCase().startsWith(prefix)) {
+                results.add(file);
+            }
+
+            // Recursively search subdirectories if nested dirs are allowed
+            if (allowNestedDirs && file.isDirectory()) {
+                searchFiles(file, prefix, results);
+            }
+        }
+    }
+
+    private String getRelativePath(File file) {
+        try {
+            String filePath = file.getCanonicalPath();
+            String rootPath = rootDir.getCanonicalPath();
+
+            if (filePath.startsWith(rootPath)) {
+                String relativePath = filePath.substring(rootPath.length());
+                if (relativePath.startsWith(File.separator)) {
+                    relativePath = relativePath.substring(1);
+                }
+                return relativePath.replace(File.separator, "/");
+            }
+        } catch (IOException e) {
+            logger.warning("Error getting relative path for file: " + file.getPath());
+        }
+        return file.getName();
+    }
+
+    private void addFileToZip(File file, File rootDir, ZipOutputStream zos) throws IOException {
+        String relativePath = getRelativePath(file);
+
+        ZipEntry zipEntry = new ZipEntry(relativePath);
+        zos.putNextEntry(zipEntry);
+
+        try (FileInputStream fis = new FileInputStream(file)) {
+            byte[] buffer = new byte[1024];
+            int length;
+            while ((length = fis.read(buffer)) > 0) {
+                zos.write(buffer, 0, length);
+            }
+        }
+
+        zos.closeEntry();
     }
 
     private void handleListCommand(String[] args, MessageReceivedEvent event) {

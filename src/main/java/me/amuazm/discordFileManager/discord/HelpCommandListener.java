@@ -75,11 +75,13 @@ public class HelpCommandListener extends ListenerAdapter {
                     // Basic commands
                     if (allowNestedDirs) {
                         helpMessage.append("`$").append(prefix).append("-list [directory/path]` - List files/directories. Use without path to list root directory.\n");
+                        helpMessage.append("`$").append(prefix).append("-search <query>` - Search for files in the ").append(config.getItemCategory().toLowerCase()).append(" directory that begin with the query.\n");
                         helpMessage.append("`$").append(prefix).append("-read <path/to/filename>` - Get a file from any directory.\n");
                         helpMessage.append("`$").append(prefix).append("-upload [path/to/filename]` - Upload a file. Optionally specify directory path.\n");
                         helpMessage.append("`$").append(prefix).append("-delete <path/to/filename>` - Delete a file and upload it as backup.\n");
                     } else {
                         helpMessage.append("`$").append(prefix).append("-list` - List files in the ").append(config.getItemCategory().toLowerCase()).append(" directory.\n");
+                        helpMessage.append("`$").append(prefix).append("-search <query>` - Search for files in the ").append(config.getItemCategory().toLowerCase()).append(" directory that begin with the query.\n");
                         helpMessage.append("`$").append(prefix).append("-read <filename>` - Get a ").append(config.getItemCategory().toLowerCase()).append(" file. Uploads the file in the channel.\n");
                         helpMessage.append("`$").append(prefix).append("-upload` - Upload a ").append(config.getItemCategory().toLowerCase()).append(". Requires an attachment. Replaces an existing file and uploads it in the channel.\n");
                         helpMessage.append("`$").append(prefix).append("-delete <filename>` - Delete a ").append(config.getItemCategory().toLowerCase()).append(" file and uploads it in the channel.\n");
