@@ -221,6 +221,7 @@ public class FileManager extends ListenerAdapter {
 
         if (searchQuery.length() <= 3) {
             channel.sendMessage("<@" + event.getAuthor().getId() + "> ❌ Search query must be 4 or more characters.").queue();
+            return;
         }
 
         try {
