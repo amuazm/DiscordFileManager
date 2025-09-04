@@ -98,15 +98,13 @@ public class HelpCommandListener extends ListenerAdapter {
 
             if (hasNestedDirs) {
                 helpMessage.append("\n### 📁 Directory Navigation Examples:\n");
-                helpMessage.append("```\n");
-                helpMessage.append("$q-list                         # List root directory\n");
-                helpMessage.append("$q-list Ancestral               # List 'Ancestral' folder\n");
-                helpMessage.append("$q-read Ancestral/quest.yml     # Get file from subfolder\n");
-                helpMessage.append("$q-upload Ancestral/new.yml     # Upload to specific path\n");
-                helpMessage.append("$q-upload Ancestral/            # Upload with original name\n");
-                helpMessage.append("$q-mkdir Tower                  # Create new directory\n");
-                helpMessage.append("$q-delete Ancestral/unused.yml  # Delete from subfolder\n");
-                helpMessage.append("```\n");
+                helpMessage.append("`$q-list                         # List root directory`\n");
+                helpMessage.append("`$q-list Ancestral               # List 'Ancestral' folder`\n");
+                helpMessage.append("`$q-read Ancestral/quest.yml     # Get file from subfolder`\n");
+                helpMessage.append("`$q-upload Ancestral/new.yml     # Upload to specific path`\n");
+                helpMessage.append("`$q-upload Ancestral/            # Upload with original name`\n");
+                helpMessage.append("`$q-mkdir Tower                  # Create new directory`\n");
+                helpMessage.append("`$q-delete Ancestral/unused.yml  # Delete from subfolder`\n");
             }
 
             // Split message if it's too long
