@@ -219,6 +219,10 @@ public class FileManager extends ListenerAdapter {
         // Join all arguments after the command to form the search query
         String searchQuery = String.join(" ", Arrays.copyOfRange(args, 1, args.length)).toLowerCase();
 
+        if (searchQuery.length() <= 3) {
+            channel.sendMessage("<@" + event.getAuthor().getId() + "> ❌ Search query must be 4 or more characters.").queue();
+        }
+
         try {
             // Search for files recursively if nested dirs allowed, otherwise just in root
             List<File> matchingFiles = new ArrayList<>();
